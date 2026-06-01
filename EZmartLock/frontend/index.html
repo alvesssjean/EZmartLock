@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EZmartLock - Teste DOM</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #121212;
+            color: #00ff00;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .painel {
+            background-color: #1e1e1e;
+            border: 2px solid #00ff00;
+            padding: 25px;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+        }
+        .linha {
+            font-size: 18px;
+            margin: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #333;
+            padding-bottom: 5px;
+        }
+        .valor {
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .alerta-box {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #330000;
+            border: 1px solid #ff0000;
+            color: #ff3333;
+            font-weight: bold;
+            display: none; /* Escondido por padrão */
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>[EZmartLock Monitor]</h1>
+
+    <div class="painel">
+        <div class="linha">
+            <span>Distância:</span>
+            <span id="dom-distancia" class="valor">---</span>
+        </div>
+        <div class="linha">
+            <span>Presença:</span>
+            <span id="dom-presenca" class="valor">---</span>
+        </div>
+        <div class="linha">
+            <span>Tranca:</span>
+            <span id="dom-tranca" class="valor">---</span>
+        </div>
+        <div class="linha">
+            <span>Porta:</span>
+            <span id="dom-porta" class="valor">---</span>
+        </div>
+
+        <div id="dom-alerta" class="alerta-box"></div>
+    </div>
+
+    <script>
+        // Função que consome a API do Node e manipula o DOM diretamente
+        async function atualizarDados() {
+            try {
+                const resposta = await fetch('/api/status');
+                const dados = await resposta.json();
+
+                // Captura os elementos e injeta os valores textuais vindos do JSON do Arduino
+                document.getElementById('dom-distancia').textContent = dados.distancia + (typeof dados.distancia === 'number' ? ' cm' : '');
+                document.getElementById('dom-presenca').textContent = dados.presenca;
+                document.getElementById('dom-tranca').textContent = dados.tranca;
+                document.getElementById('dom-porta').textContent = dados.porta;
+
+                // Lógica do elemento de Alerta no DOM
+                const campoAlerta = document.getElementById('dom-alerta');
+                if (dados.alerta && dados.alerta !== "NENHUM") {
+                    campoAlerta.textContent = dados.alerta;
+                    campoAlerta.style.display = "block"; // Exibe a caixinha se houver alerta
+                } else {
+                    campoAlerta.style.display = "none";  // Oculta se estiver tudo normal
+                }
+
+            } catch (erro) {
+                console.error("Erro ao buscar dados do hardware:", erro);
+            }
+        }
+
+        // Executa imediatamente ao abrir e agenda para rodar a cada 1 segundo (1000ms)
+        atualizarDados();
+        setInterval(atualizarDados, 1000);
+    </script>
+</body>
+</html>
