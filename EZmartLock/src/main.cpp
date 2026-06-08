@@ -224,23 +224,35 @@ void imprimirStatusSerial(unsigned long tempoAtual) {
   if (tempoAtual - tempoAnteriorSerial >= 1500) {
     tempoAnteriorSerial = tempoAtual;
     
-    Serial.print(F("[INFO] Dist: "));
-    if (distancia == 999) { Serial.print(F(">170")); } else { Serial.print(distancia); }
-    Serial.print(F("cm | Presenca: "));
-    Serial.print(temPresenca ? F("SIM") : F("NAO"));
-    Serial.print(F(" | Destrancada: "));
-    Serial.print(trancaDestrancada ? F("SIM") : F("NAO"));
-    Serial.print(F(" | Aberta: "));
-    Serial.println(portaAberta ? F("SIM") : F("NAO"));
-
-    if (obstruida) {
-      Serial.println(F("[CRÍTICO] Porta OBSTRUIDA!"));
-    } else if (portaAberta && !trancaDestrancada) {
-      Serial.println(F("[ALERTA] A porta foi ABERTA com a tranca ATIVADA!"));
+    // Início do JSON
+    Serial.print("{");
+    
+    // Mantém a estrutura exata de checagem da distância original
+    Serial.print("\"distancia\":");
+    if (distancia == 999) {
+      Serial.print("\"> 170\""); // String no JSON
+    } else {
+      Serial.print(distancia);     // Número no JSON
     }
+    
+    // Mantém a estrutura de texto para Presença, Tranca e Porta, convertendo para o JSON
+    Serial.print(",\"presenca\":\"");          Serial.print(temPresenca ? "SIM" : "NAO");          Serial.print("\"");
+    Serial.print(",\"tranca\":\"");            Serial.print(trancaDestrancada ? "DESTRANCADA" : "TRANCADA"); Serial.print("\"");
+    Serial.print(",\"porta\":\"");             Serial.print(portaAberta ? "ABERTA" : "FECHADA");    Serial.print("\"");
+
+    // Mantém a estrutura exata dos seus IFs de Alerta originais
+    if (obstruida) {
+      Serial.print(",\"alerta\":\"[ALERTA CRÍTICO] Porta OBSTRUIDA! Presenca detectada na porta trancada e fechada.\"");
+    } else if (portaAberta && !trancaDestrancada) {
+      Serial.print(",\"alerta\":\"[ALERTA] A porta está ABERTA, mas a tranca esta ATIVADA!\"");
+    } else {
+      Serial.print(",\"alerta\":\"NENHUM\"");
+    }
+
+    // Fim do JSON com quebra de linha para o Python ler
+    Serial.println("}"); 
   }
 }
-
 void setup() {
   Serial.begin(9600);
   configurarHardware();
