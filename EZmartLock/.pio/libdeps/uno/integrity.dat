@@ -1,1 +1,2 @@
-IRremote
+adafruit/RTClib @ ^2.1.4
+z3t0/IRremote @ ^4.7.1

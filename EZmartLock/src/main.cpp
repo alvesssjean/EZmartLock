@@ -1,17 +1,19 @@
 #include <Arduino.h>
-#include <IRremote.hpp>
 #include <SoftwareSerial.h>
+#include <Wire.h>
+#include <RTClib.h>
 
-const int PINO_IR      = 5;  
 const int PINO_LED     = 13; 
 const int PINO_TRIG    = 8;
 const int PINO_ECHO    = 9;
 const int PINO_PIR     = 7; 
 
 SoftwareSerial esp8266(10, 11); 
+RTC_DS3231 rtc;
 
 const int DISTANCIA_LIMITE = 3; 
 
+// SUBSTITUA PELOS DADOS DA SUA REDE
 const String WIFI_SSID = "Torres";
 const String WIFI_PASS = "Mftl552912";
 
@@ -32,14 +34,17 @@ void configurarHardware() {
   pinMode(PINO_TRIG, OUTPUT);
   pinMode(PINO_ECHO, INPUT);
   pinMode(PINO_PIR, INPUT); 
-  
-  IrReceiver.begin(PINO_IR, DISABLE_LED_FEEDBACK);
+
+  Wire.begin();
+  if (rtc.begin()) {
+    if (rtc.lostPower()) {
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
+  }
 }
 
 boolean enviarComandoAT(String comando, const int timeout) {
-  while (esp8266.available()) {
-    esp8266.read();
-  }
+  while (esp8266.available()) esp8266.read();
 
   esp8266.println(comando);
   long int tempoLimitrofe = millis() + timeout;
@@ -65,9 +70,7 @@ boolean enviarComandoAT(String comando, const int timeout) {
 
 void exibirLinkAcesso() {
   while(esp8266.available()) esp8266.read();
-
   esp8266.println(F("AT+CIFSR"));
-  
   long tempoLimite = millis() + 2000;
   while (millis() < tempoLimite) {
     while (esp8266.available()) {
@@ -82,12 +85,8 @@ void configurarConexao() {
   
   Serial.println(F("[Wi-Fi] Iniciando modulo..."));
   enviarComandoAT(F("AT"), 1000);
-
-  Serial.println(F("[Wi-Fi] Resetando configurações..."));
   enviarComandoAT(F("AT+RST"), 2000);
   delay(2000);
-
-  Serial.println(F("[Wi-Fi] Modo Station..."));
   enviarComandoAT(F("AT+CWMODE=1"), 1000);
 
   Serial.println(F("[Wi-Fi] Conectando ao Roteador..."));
@@ -101,23 +100,25 @@ void configurarConexao() {
 
   enviarComandoAT(F("AT+CIPMUX=1"), 1000);
   delay(500); 
-  
   enviarComandoAT(F("AT+CIPSERVER=1,80"), 1000);
   delay(500);
-  
   exibirLinkAcesso();
 }
 
-void verificarControleIR() {
-  if (IrReceiver.decode()) {
-    if (!(IrReceiver.decodedIRData.flags & IRDATA_FLAGS_IS_REPEAT)) {
-      if(IrReceiver.decodedIRData.command != 0){
-          trancaDestrancada = !trancaDestrancada;
-          Serial.println(trancaDestrancada ? F("DESTRANCADA") : F("TRANCADA"));
-      }
-    }
-    IrReceiver.resume(); 
-  }
+// LOG DO RELÓGIO (Acionado pela API)
+void registrarEventoTranca(String acao) {
+  DateTime agora = rtc.now();
+  Serial.print(F("[API - "));
+  if (agora.hour() < 10) Serial.print('0');
+  Serial.print(agora.hour(), DEC);
+  Serial.print(':');
+  if (agora.minute() < 10) Serial.print('0');
+  Serial.print(agora.minute(), DEC);
+  Serial.print(':');
+  if (agora.second() < 10) Serial.print('0');
+  Serial.print(agora.second(), DEC);
+  Serial.print(F("] Comando recebido: "));
+  Serial.println(acao);
 }
 
 void lerSensoresFisicos(unsigned long tempoAtual) {
@@ -133,12 +134,8 @@ void lerSensoresFisicos(unsigned long tempoAtual) {
     digitalWrite(PINO_TRIG, LOW);
     
     long duracao = pulseIn(PINO_ECHO, HIGH, 10000); 
-    
-    if (duracao == 0) {
-      distancia = 999; 
-    } else {
-      distancia = duracao * 0.034 / 2;
-    }
+    if (duracao == 0) distancia = 999; 
+    else distancia = duracao * 0.034 / 2;
     
     temPresenca = (presencaDetectada == HIGH);
     portaAberta = (distancia > DISTANCIA_LIMITE);
@@ -155,12 +152,8 @@ void atualizarAlertaLED(unsigned long tempoAtual) {
         estadoLedPisca = !estadoLedPisca; 
         digitalWrite(PINO_LED, estadoLedPisca);
       }
-    } else {
-      digitalWrite(PINO_LED, HIGH); 
-    }
-  } else {
-    digitalWrite(PINO_LED, LOW); 
-  }
+    } else { digitalWrite(PINO_LED, HIGH); }
+  } else { digitalWrite(PINO_LED, LOW); }
 }
 
 void atenderRequisicoesWeb() {
@@ -173,9 +166,7 @@ void atenderRequisicoesWeb() {
       while (millis() < tempoEsvaziar) {
         while (esp8266.available()) {
           char c = esp8266.read();
-          if (requisicao.length() < 20) {
-            requisicao += c; 
-          }
+          if (requisicao.length() < 25) requisicao += c; 
           tempoEsvaziar = millis() + 10; 
         }
       }
@@ -186,20 +177,30 @@ void atenderRequisicoesWeb() {
         return;
       }
 
-      String statusPorta = "FECHADA";
-      if (obstruida) {
-        statusPorta = "OBSTRUIDA";
-      } else if (portaAberta) {
-        statusPorta = "ABERTA";
+      // ROTEADOR DA API: Verifica qual comando o Frontend enviou
+      if (requisicao.indexOf("GET /destrancar") != -1) {
+        trancaDestrancada = true;
+        registrarEventoTranca(F("DESTRANCAR"));
+      } else if (requisicao.indexOf("GET /trancar") != -1) {
+        trancaDestrancada = false;
+        registrarEventoTranca(F("TRANCAR"));
       }
+
+      String statusPorta = "FECHADA";
+      if (obstruida) statusPorta = "OBSTRUIDA";
+      else if (portaAberta) statusPorta = "ABERTA";
 
       String statusTranca = trancaDestrancada ? "DESTRANCADA" : "TRANCADA";
 
-      String pacote = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
-      pacote += "<!DOCTYPE html><html><body>";
-      pacote += "<h1>Porta: " + statusPorta + "</h1>";
-      pacote += "<h1>Tranca: " + statusTranca + "</h1>";
-      pacote += "</body></html>";
+      // MONTA O PACOTE JSON PARA A API
+      String json = "{\"porta\":\"" + statusPorta + "\",\"tranca\":\"" + statusTranca + "\"}";
+
+      // Cabeçalho modificado com permissão de acesso (CORS)
+      String pacote = "HTTP/1.1 200 OK\r\n";
+      pacote += "Content-Type: application/json\r\n";
+      pacote += "Access-Control-Allow-Origin: *\r\n"; 
+      pacote += "Connection: close\r\n\r\n";
+      pacote += json;
 
       while (esp8266.available()) esp8266.read(); 
 
@@ -208,10 +209,7 @@ void atenderRequisicoesWeb() {
       esp8266.print(",");
       esp8266.println(pacote.length());
       
-      if (esp8266.find(">")) {
-        esp8266.print(pacote); 
-        Serial.println(F("Informações enviadas com sucesso!"));
-      }
+      if (esp8266.find(">")) esp8266.print(pacote); 
 
       delay(150);
       esp8266.print("AT+CIPCLOSE=");
@@ -223,39 +221,28 @@ void atenderRequisicoesWeb() {
 void imprimirStatusSerial(unsigned long tempoAtual) {
   if (tempoAtual - tempoAnteriorSerial >= 1500) {
     tempoAnteriorSerial = tempoAtual;
-    
     Serial.print(F("[INFO] Dist: "));
-    if (distancia == 999) { Serial.print(F(">170")); } else { Serial.print(distancia); }
+    if (distancia == 999) Serial.print(F(">170")); else Serial.print(distancia);
     Serial.print(F("cm | Presenca: "));
     Serial.print(temPresenca ? F("SIM") : F("NAO"));
     Serial.print(F(" | Destrancada: "));
     Serial.print(trancaDestrancada ? F("SIM") : F("NAO"));
     Serial.print(F(" | Aberta: "));
     Serial.println(portaAberta ? F("SIM") : F("NAO"));
-
-    if (obstruida) {
-      Serial.println(F("[CRÍTICO] Porta OBSTRUIDA!"));
-    } else if (portaAberta && !trancaDestrancada) {
-      Serial.println(F("[ALERTA] A porta foi ABERTA com a tranca ATIVADA!"));
-    }
   }
 }
 
 void setup() {
   Serial.begin(9600);
   configurarHardware();
-  
   Serial.println(F("========================================="));
-  Serial.println(F("         -- EZmartLock --        "));
+  Serial.println(F("     -- EZmartLock API REST --    "));
   Serial.println(F("========================================="));
-  
   configurarConexao(); 
 }
 
 void loop() {
   unsigned long tempoAtual = millis(); 
-
-  verificarControleIR();
   lerSensoresFisicos(tempoAtual);
   atualizarAlertaLED(tempoAtual);
   atenderRequisicoesWeb(); 
