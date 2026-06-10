@@ -1,0 +1,7 @@
+{
+  "monitor_ativo": true,
+  "modo_24h": false,
+  "inicio": "19:00",
+  "fim": "08:00",
+  "auto_trancar": true
+}
