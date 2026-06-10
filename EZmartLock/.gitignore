@@ -3,3 +3,8 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Backend (Flask)
+backend/.venv
+backend/config.json
+backend/__pycache__
