@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EZmartLock</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: sans-serif;
+        background: #f0f2f5;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 16px;
+      }
+      .c {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        width: 340px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+        margin-bottom: 4px;
+      }
+      .conn {
+        text-align: center;
+        font-size: 0.8rem;
+        margin-bottom: 6px;
+      }
+      .conn .dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #aaa;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+      .conn.on .dot {
+        background: #27ae60;
+      }
+      .conn.off .dot {
+        background: #e74c3c;
+      }
+      .mon {
+        text-align: center;
+        font-size: 0.78rem;
+        color: #777;
+        margin-bottom: 16px;
+      }
+      .mon.ativo {
+        color: #2c3e50;
+        font-weight: 700;
+      }
+      .reativar {
+        display: inline-block;
+        width: auto;
+        padding: 7px 14px;
+        margin: 0 0 14px;
+        font-size: 0.78rem;
+        background: #2c3e50;
+        color: #fff;
+      }
+      .r {
+        display: flex;
+        justify-content: space-between;
+        padding: 9px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .lb {
+        color: #777;
+      }
+      .vl {
+        font-weight: 700;
+      }
+      .ab,
+      .dt,
+      .ob {
+        color: #e74c3c;
+      }
+      .fc,
+      .tr {
+        color: #27ae60;
+      }
+      button {
+        width: 100%;
+        padding: 13px;
+        margin-top: 18px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .bl {
+        background: #e74c3c;
+        color: #fff;
+      }
+      .bu {
+        background: #27ae60;
+        color: #fff;
+      }
+      .ts {
+        text-align: center;
+        font-size: 0.75rem;
+        color: #aaa;
+        margin-top: 12px;
+      }
+      #alertas {
+        margin-bottom: 6px;
+      }
+      .alerta {
+        background: #fdecea;
+        border: 1px solid #f5b7b1;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        font-size: 0.82rem;
+      }
+      .alerta-acoes,
+      .adiar {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .mini {
+        width: auto;
+        flex: 1 1 auto;
+        padding: 8px;
+        margin: 0;
+        font-size: 0.76rem;
+        background: #ecf0f1;
+        color: #2c3e50;
+      }
+      .mini.go {
+        background: #27ae60;
+        color: #fff;
+      }
+      .cfg {
+        margin-top: 18px;
+        border-top: 1px solid #f0f0f0;
+        padding-top: 10px;
+      }
+      .cfg summary {
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #777;
+      }
+      .cfg .campo {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 7px 0;
+        font-size: 0.85rem;
+      }
+      .cfg input[type="time"] {
+        padding: 4px;
+        font-size: 0.85rem;
+      }
+      .cfg .salvar {
+        background: #2c3e50;
+        color: #fff;
+        margin-top: 10px;
+        font-size: 0.9rem;
+      }
+      .hist {
+        margin-top: 18px;
+      }
+      .hist h3 {
+        font-size: 0.85rem;
+        color: #777;
+        margin-bottom: 8px;
+      }
+      .hist ul {
+        list-style: none;
+        max-height: 140px;
+        overflow-y: auto;
+      }
+      .hist li {
+        font-size: 0.78rem;
+        padding: 5px 0;
+        border-bottom: 1px solid #f6f6f6;
+        display: flex;
+        justify-content: space-between;
+      }
+      .hist .vazio {
+        color: #bbb;
+        font-style: italic;
+      }
+      .toast {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #34495e;
+        color: #fff;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        z-index: 10;
+        max-width: 90vw;
+        text-align: center;
+      }
+      .toast.show {
+        opacity: 0.97;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toast" class="toast"></div>
+
+    <div class="c">
+      <h2>&#128274; EZmartLock</h2>
+      <div id="conn" class="conn">
+        <span class="dot"></span><span id="connTxt">conectando...</span>
+      </div>
+      <div class="mon" id="mon">-</div>
+      <div style="text-align: center">
+        <button id="reativar" class="reativar" style="display: none">
+          Reativar monitoramento
+        </button>
+      </div>
+
+      <div id="alertas">
+        <div id="alertaAberta" class="alerta" style="display: none">
+          <div>
+            &#9888; A porta está <b>ABERTA</b> durante o período em que deveria
+            estar fechada.
+          </div>
+          <div class="alerta-acoes">
+            <button class="mini" data-acao="desligar" data-tipo="aberta">
+              Desligar monitoramento hoje
+            </button>
+            <button class="mini" data-acao="adiar-toggle" data-tipo="aberta">
+              Adiar
+            </button>
+          </div>
+          <div class="adiar" data-tipo="aberta" style="display: none">
+            <button class="mini" data-adiar="10" data-tipo="aberta">10 min</button>
+            <button class="mini" data-adiar="30" data-tipo="aberta">30 min</button>
+            <button class="mini" data-adiar="60" data-tipo="aberta">60 min</button>
+          </div>
+        </div>
+
+        <div id="alertaDestrancada" class="alerta" style="display: none">
+          <div>
+            &#128275; A porta está <b>DESTRANCADA</b> durante o período em que
+            deveria estar trancada.
+          </div>
+          <div class="alerta-acoes">
+            <button
+              class="mini go"
+              data-acao="trancar"
+              data-tipo="destrancada"
+            >
+              Trancar
+            </button>
+            <button class="mini" data-acao="desligar" data-tipo="destrancada">
+              Desligar monitoramento hoje
+            </button>
+            <button class="mini" data-acao="adiar-toggle" data-tipo="destrancada">
+              Adiar
+            </button>
+          </div>
+          <div class="adiar" data-tipo="destrancada" style="display: none">
+            <button class="mini" data-adiar="10" data-tipo="destrancada">10 min</button>
+            <button class="mini" data-adiar="30" data-tipo="destrancada">30 min</button>
+            <button class="mini" data-adiar="60" data-tipo="destrancada">60 min</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="r">
+        <span class="lb">Porta</span><span id="p" class="vl">-</span>
+      </div>
+      <div class="r">
+        <span class="lb">Obstruída</span><span id="o" class="vl">-</span>
+      </div>
+      <div class="r">
+        <span class="lb">Tranca</span><span id="t" class="vl">-</span>
+      </div>
+      <div class="r">
+        <span class="lb">Presença</span><span id="pr" class="vl">-</span>
+      </div>
+
+      <button id="b" disabled>-</button>
+      <div class="ts" id="msg"></div>
+
+      <details class="cfg">
+        <summary>&#9881;&#65039; Configurações de monitoramento</summary>
+        <div class="campo">
+          <label for="cfgAtivo">Monitoramento ativo</label>
+          <input type="checkbox" id="cfgAtivo" />
+        </div>
+        <div class="campo">
+          <label for="cfg24h">Monitorar 24 horas</label>
+          <input type="checkbox" id="cfg24h" />
+        </div>
+        <div class="campo">
+          <label for="cfgInicio">Início do período</label>
+          <input type="time" id="cfgInicio" value="20:00" />
+        </div>
+        <div class="campo">
+          <label for="cfgFim">Fim do período</label>
+          <input type="time" id="cfgFim" value="08:00" />
+        </div>
+        <div class="campo">
+          <label for="cfgAuto">Trancar automaticamente quando fechada</label>
+          <input type="checkbox" id="cfgAuto" />
+        </div>
+        <button class="salvar" id="cfgSalvar">Salvar configuração</button>
+      </details>
+
+      <div class="hist">
+        <h3>Histórico do período</h3>
+        <ul id="hist">
+          <li class="vazio">Sem eventos ainda.</li>
+        </ul>
+      </div>
+
+      <div class="ts" id="ts">-</div>
+    </div>
+
+    <script>
+      let trancaAtual = null;
+      let aguardando = false;
+      let esperado = null;
+      let aguardandoAteMs = 0;
+
+      let prevPorta = null;
+      let prevTranca = null;
+
+      function setTexto(id, valor, classe) {
+        let el = document.getElementById(id);
+        el.textContent = valor;
+        if (classe !== undefined) el.className = "vl " + classe;
+      }
+
+      let toastTimer = null;
+      function toast(msg) {
+        let t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+          t.classList.remove("show");
+        }, 4000);
+      }
+
+      function esconderAlerta(tipo) {
+        let id = tipo === "aberta" ? "alertaAberta" : "alertaDestrancada";
+        document.getElementById(id).style.display = "none";
+      }
+
+      document
+        .getElementById("alertas")
+        .addEventListener("click", function (ev) {
+          let btn = ev.target.closest("button");
+          if (!btn) return;
+          let tipo = btn.getAttribute("data-tipo");
+
+          if (btn.hasAttribute("data-adiar")) {
+            let minutos = parseInt(btn.getAttribute("data-adiar"), 10);
+            fetch("/api/alerta/" + tipo + "/adiar", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ minutos: minutos }),
+            }).catch(function () {});
+            esconderAlerta(tipo);
+            toast("Alerta adiado por " + minutos + " min.");
+            return;
+          }
+
+          let acao = btn.getAttribute("data-acao");
+          if (acao === "desligar") {
+            fetch("/api/monitoramento/desligar-hoje", {
+              method: "POST",
+            }).catch(function () {});
+            esconderAlerta("aberta");
+            esconderAlerta("destrancada");
+            toast("Monitoramento desligado por hoje.");
+          } else if (acao === "adiar-toggle") {
+            let d = document.querySelector('.adiar[data-tipo="' + tipo + '"]');
+            d.style.display = d.style.display === "none" ? "flex" : "none";
+          } else if (acao === "trancar") {
+            fetch("/api/trancar", { method: "POST" })
+              .then(function (r) {
+                return r.json();
+              })
+              .then(function (resp) {
+                if (resp && resp.ok === false) {
+                  toast("Feche a porta antes de trancar.");
+                } else {
+                  toast("Comando TRANCAR enviado.");
+                }
+              })
+              .catch(function () {
+                toast("Falha ao enviar o comando.");
+              });
+            esconderAlerta("destrancada");
+          }
+        });
+
+      function descreverMonitoramento(c, emPeriodo, desligadoHoje) {
+        if (!c) return "-";
+        if (!c.monitor_ativo) return "Monitoramento desativado";
+        if (desligadoHoje) return "Monitoramento desligado por hoje";
+        if (c.modo_24h)
+          return "Monitorando 24h" + (emPeriodo ? " • no período" : "");
+        return (
+          "Monitorando " +
+          c.inicio +
+          "–" +
+          c.fim +
+          (emPeriodo ? " • no período" : " • fora do período")
+        );
+      }
+
+      function atualizar() {
+        fetch("/api/status")
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (d) {
+            let conn = document.getElementById("conn");
+            let b = document.getElementById("b");
+            let mon = document.getElementById("mon");
+
+            mon.textContent = descreverMonitoramento(
+              d.config,
+              d.em_monitoramento,
+              d.monitor_desligado_hoje,
+            );
+            mon.className = "mon" + (d.em_monitoramento ? " ativo" : "");
+            document.getElementById("reativar").style.display =
+              d.monitor_desligado_hoje ? "inline-block" : "none";
+
+            if (!d.online) {
+              conn.className = "conn off";
+              document.getElementById("connTxt").textContent =
+                "offline — sem contato com o dispositivo";
+              b.disabled = true;
+              b.textContent = "Dispositivo offline";
+              b.className = "";
+              esconderAlerta("aberta");
+              esconderAlerta("destrancada");
+              return;
+            }
+
+            conn.className = "conn on";
+            document.getElementById("connTxt").textContent =
+              "online — atualizado " + (d.atualizado_em || "-");
+
+            setTexto("p", d.porta, d.porta === "FECHADA" ? "fc" : "ab");
+            setTexto("o", d.obstruida, d.obstruida === "SIM" ? "ob" : "fc");
+            setTexto("t", d.tranca, d.tranca === "TRANCADA" ? "tr" : "dt");
+            setTexto("pr", d.presenca);
+
+            trancaAtual = d.tranca;
+
+            if (d.em_monitoramento) {
+              if (prevPorta && prevPorta !== "ABERTA" && d.porta === "ABERTA") {
+                toast("Aviso: porta ABERTA durante o monitoramento.");
+              }
+              if (
+                prevTranca &&
+                prevTranca !== "DESTRANCADA" &&
+                d.tranca === "DESTRANCADA"
+              ) {
+                toast("Aviso: porta DESTRANCADA durante o monitoramento.");
+              }
+            }
+            prevPorta = d.porta;
+            prevTranca = d.tranca;
+
+            document.getElementById("alertaAberta").style.display =
+              d.alerta_aberta ? "block" : "none";
+            document.getElementById("alertaDestrancada").style.display =
+              d.alerta_destrancada ? "block" : "none";
+            let btnTr = document.querySelector(
+              '#alertaDestrancada [data-acao="trancar"]',
+            );
+            if (btnTr)
+              btnTr.style.display = d.porta === "FECHADA" ? "" : "none";
+
+            document.getElementById("ts").textContent =
+              "Sincronizado: " + new Date().toLocaleTimeString("pt-BR");
+
+            if (aguardando) {
+              if (d.tranca === esperado || Date.now() > aguardandoAteMs) {
+                aguardando = false;
+                document.getElementById("msg").textContent = "";
+              } else {
+                b.disabled = true;
+                b.textContent = "Aguardando dispositivo...";
+                b.className = "";
+                return;
+              }
+            }
+
+            if (d.tranca === "TRANCADA") {
+              b.disabled = false;
+              b.textContent = "Destrancar";
+              b.className = "bl";
+            } else if (d.porta === "FECHADA") {
+              b.disabled = false;
+              b.textContent = "Trancar";
+              b.className = "bu";
+            } else {
+              b.disabled = true;
+              b.textContent = "Feche a porta para trancar";
+              b.className = "";
+            }
+          })
+          .catch(function () {});
+      }
+
+      function rotuloEvento(e) {
+        if (e.tipo === "tranca") {
+          let cor = e.valor === "TRANCADA" ? "tr" : "dt";
+          let txt = e.valor === "TRANCADA" ? "Trancada" : "Destrancada";
+          return { cor: cor, txt: txt };
+        }
+        let cor = e.valor === "FECHADA" ? "fc" : "ab";
+        let txt =
+          e.valor === "FECHADA"
+            ? "Porta fechada"
+            : e.valor === "ABERTA"
+              ? "Porta aberta"
+              : "Porta " + String(e.valor).toLowerCase();
+        return { cor: cor, txt: txt };
+      }
+
+      function atualizarHistorico() {
+        fetch("/api/historico")
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (lista) {
+            let ul = document.getElementById("hist");
+            if (!lista.length) {
+              ul.innerHTML = '<li class="vazio">Sem eventos ainda.</li>';
+              return;
+            }
+            ul.innerHTML = lista
+              .map(function (e) {
+                let r = rotuloEvento(e);
+                return (
+                  '<li><span class="' +
+                  r.cor +
+                  '">' +
+                  r.txt +
+                  "</span><span>" +
+                  e.registrado_em +
+                  "</span></li>"
+                );
+              })
+              .join("");
+          })
+          .catch(function () {});
+      }
+
+      document.getElementById("b").addEventListener("click", function () {
+        if (trancaAtual === null) return;
+        let trancar = trancaAtual !== "TRANCADA";
+        let rota = trancar ? "/api/trancar" : "/api/destrancar";
+        esperado = trancar ? "TRANCADA" : "DESTRANCADA";
+        aguardando = true;
+        aguardandoAteMs = Date.now() + 8000;
+
+        let b = document.getElementById("b");
+        b.disabled = true;
+        b.textContent = "Aguardando dispositivo...";
+        b.className = "";
+        document.getElementById("msg").textContent =
+          "Comando enviado — o dispositivo aplica em alguns segundos.";
+
+        fetch(rota, { method: "POST" })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (resp) {
+            if (resp && resp.ok === false) {
+              aguardando = false;
+              document.getElementById("msg").textContent =
+                resp.motivo === "porta_aberta"
+                  ? "Feche a porta antes de trancar."
+                  : "Comando recusado.";
+            }
+          })
+          .catch(function () {
+            aguardando = false;
+            document.getElementById("msg").textContent =
+              "Falha ao enviar o comando.";
+          });
+      });
+
+      function aplicar24h() {
+        let on = document.getElementById("cfg24h").checked;
+        document.getElementById("cfgInicio").disabled = on;
+        document.getElementById("cfgFim").disabled = on;
+      }
+
+      function carregarConfig() {
+        fetch("/api/config")
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (c) {
+            document.getElementById("cfgAtivo").checked = !!c.monitor_ativo;
+            document.getElementById("cfg24h").checked = !!c.modo_24h;
+            document.getElementById("cfgInicio").value = c.inicio || "20:00";
+            document.getElementById("cfgFim").value = c.fim || "08:00";
+            document.getElementById("cfgAuto").checked = !!c.auto_trancar;
+            aplicar24h();
+          })
+          .catch(function () {});
+      }
+
+      document
+        .getElementById("reativar")
+        .addEventListener("click", function () {
+          fetch("/api/monitoramento/reativar", { method: "POST" })
+            .then(function () {
+              toast("Monitoramento reativado.");
+              atualizar();
+            })
+            .catch(function () {
+              toast("Falha ao reativar.");
+            });
+        });
+
+      document
+        .getElementById("cfg24h")
+        .addEventListener("change", aplicar24h);
+
+      document
+        .getElementById("cfgSalvar")
+        .addEventListener("click", function () {
+          let body = {
+            monitor_ativo: document.getElementById("cfgAtivo").checked,
+            modo_24h: document.getElementById("cfg24h").checked,
+            inicio: document.getElementById("cfgInicio").value || "20:00",
+            fim: document.getElementById("cfgFim").value || "08:00",
+            auto_trancar: document.getElementById("cfgAuto").checked,
+          };
+          fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (resp) {
+              toast(resp && resp.ok ? "Configuração salva." : "Falha ao salvar.");
+            })
+            .catch(function () {
+              toast("Falha ao salvar.");
+            });
+        });
+
+      carregarConfig();
+      atualizar();
+      atualizarHistorico();
+      setInterval(atualizar, 1500);
+      setInterval(atualizarHistorico, 5000);
+    </script>
+  </body>
+</html>
